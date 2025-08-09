@@ -2,23 +2,430 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bookish Tribble Game</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>I Have This Many F*cks To Give — v2 (fixed)</title>
+  <style>
+    :root{
+      --bg: radial-gradient(1200px 600px at 20% -10%, #ffe8a3 0%, transparent 60%),
+            radial-gradient(1200px 600px at 120% 10%, #b3e5ff 0%, transparent 60%),
+            linear-gradient(180deg, #14161a, #0e1116 60%);
+      --card:#1b1f2a;
+      --ink:#e9edf5;
+      --muted:#9aa3b2;
+      --accent:#8b5cf6;
+      --accent-2:#22c55e;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+      color:var(--ink);
+      background:var(--bg);
+      background-attachment: fixed;
+    }
+    header{
+      position:sticky;top:0;z-index:5;
+      backdrop-filter:saturate(150%) blur(8px);
+      background:linear-gradient(180deg, rgba(20,22,26,.85), rgba(20,22,26,.55));
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .wrap{max-width:980px;margin:0 auto;padding:20px}
+    .title{display:flex;align-items:center;gap:14px;padding:10px 0 12px}
+    .title h1{margin:0;font-size:clamp(20px,3.2vw,34px)}
+    .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#262b38;color:#cbd5e1;border:1px solid rgba(255,255,255,.08)}
+
+    main{display:grid;gap:18px;grid-template-columns: 1.2fr .8fr;align-items:start}
+    @media (max-width:900px){main{grid-template-columns:1fr}}
+
+    .card{background:var(--card);border:1px solid rgba(255,255,255,.06);box-shadow:var(--shadow);border-radius:var(--radius)}
+    .card .content{padding:18px}
+
+    .counter{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center}
+    .counter .big{font-size:clamp(28px,5vw,48px);font-weight:800}
+    .row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    .mono{font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on}
+
+    #give-btn{
+      --size: 160px;
+      width:var(--size);height:var(--size);
+      border-radius: 999px;border:none;cursor:pointer;
+      background: conic-gradient(from 0deg, var(--accent), #7c3aed 30%, #22d3ee 60%, #a78bfa 85%, var(--accent));
+      color:white;font-size:18px;font-weight:800;text-transform:uppercase;
+      box-shadow: 0 14px 30px rgba(139,92,246,.45), inset 0 0 30px rgba(255,255,255,.15);
+      transition: transform .08s ease, filter .2s ease;
+      user-select:none; -webkit-tap-highlight-color: transparent;
+    }
+    #give-btn:active{ transform: scale(.97) }
+    .center{display:grid;place-items:center}
+
+    .progress-wrap{margin-top:12px}
+    .progress{height:10px;border-radius:999px;background:#11151d;border:1px solid rgba(255,255,255,.08);overflow:hidden}
+    .progress .bar{height:100%;background: linear-gradient(90deg, var(--accent-2), #38bdf8);width:0%}
+
+    .upgrade{
+      display:grid;grid-template-columns: auto 1fr auto;gap:12px;align-items:center;
+      padding:14px;border-radius:14px;margin:10px 0;background:#151a23;border:1px solid rgba(255,255,255,.06)
+    }
+    .upgrade h3{margin:0;font-size:16px}
+    .upgrade p{margin:2px 0 0 0;color:#aab1bf;font-size:13px}
+    .price{font-weight:700}
+    .buy{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#222834;color:#e5e7eb;cursor:pointer;font-weight:700}
+    .buy[disabled]{opacity:.5;cursor:not-allowed}
+
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:560px){.grid-2{grid-template-columns:1fr}}
+
+    .toast{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:20}
+    .toast .item{background:#10141b;border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:12px;animation:pop .2s ease}
+    @keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .floater{position:fixed;pointer-events:none;font-weight:800;text-shadow:0 2px 10px rgba(0,0,0,.3);animation:rise .9s ease forwards}
+    @keyframes rise{to{transform:translateY(-40px);opacity:0}}
+
+    .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
+    .pill{padding:8px 12px;border-radius:999px;background:#141923;border:1px solid rgba(255,255,255,.08)}
+
+    .achv-wrap{display:flex;gap:8px;flex-wrap:wrap}
+    .achv{padding:6px 10px;border-radius:999px;background:#192132;border:1px solid rgba(255,255,255,.08);font-size:12px}
+  </style>
 </head>
 <body>
   <header>
-    <h1>Bookish Tribble</h1>
-  </header>
-  <main>
-    <button id="giveBtn">Give</button>
-    <button id="sarcasmBtn">Sarcasm</button>
-    <button id="coffeeBtn">Coffee</button>
-    <div id="scoreboard">
-      <div>Gifts: <span id="giftCount">0</span></div>
-      <div>Sarcasm: <span id="sarcasmCount">0</span></div>
-      <div>Coffee: <span id="coffeeCount">0</span></div>
+    <div class="wrap title">
+      <div class="badge">v2</div>
+      <h1>I Have This Many F*cks To Give</h1>
+      <span class="badge" id="quip">Productivity through apathy ✨</span>
     </div>
-  </main>
-  <script src="game.js"></script>
+  </header>
+
+  <div class="wrap">
+    <main>
+      <section class="card">
+        <div class="content">
+          <div class="counter">
+            <div>
+              <div class="muted small">F*cks given</div>
+              <div class="big mono" id="fuck-count">0</div>
+              <div class="row muted small">
+                <div>Per click: <span class="mono" id="fpc">1</span></div>
+                <div>Per second: <span class="mono" id="fps">0</span></div>
+                <div class="pill">x<span id="mult">1</span> multiplier</div>
+              </div>
+            </div>
+            <div class="center">
+              <button id="give-btn" aria-label="Give a f*ck">Give a F*ck</button>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="muted small">Progress to next upgrade</div>
+            <div class="progress"><div class="bar" id="progress-bar"></div></div>
+          </div>
+
+          <div class="footer">
+            <div class="row small muted">
+              <button class="pill small" id="save">Save</button>
+              <button class="pill small" id="reset">Hard Reset</button>
+              <button class="pill small" id="sound-toggle">Sound: Off</button>
+            </div>
+            <div class="small muted">Press <b>Space</b> to click • Crit chance 5% • Combo builds if you click fast</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="content">
+          <h2 style="margin-top:0">Upgrades</h2>
+          <div id="upgrades" class="grid-2"></div>
+
+          <h3>Achievements</h3>
+          <div id="achievements" class="achv-wrap"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toasts"></div>
+
+  <audio id="pop" preload="auto">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBHQB/f39/fw==" type="audio/wav" />
+  </audio>
+
+<script>
+(()=> {
+  /* ---------- Utilities FIRST (Chrome-safe for fmt during early calls) ---------- */
+  const nf = new Intl.NumberFormat('en', { notation: 'compact' });
+  function fmt(n){ return nf.format(Math.floor(n)); }
+  function id(s){ return document.getElementById(s); }
+
+  /* ---------- Defaults & versioned save ---------- */
+  const SAVE_KEY = 'fgame_v2';
+  const DEFAULT_UPGRADES = {
+    coffee: { name: 'Coffee Break', desc: '+1 per click', base: 10, level: 0, apply: s=>{s.fpc+=1;} },
+    sarcasm:{ name: 'Sarcasm Training', desc: '+1 per second', base: 50, level: 0, apply: s=>{s.fps+=1;} },
+    eyeRoll:{ name: 'Legendary Eye-Roll', desc: '+10% click & passive', base: 200, level: 0, apply: s=>{s.fpc=Math.max(1,Math.floor(s.fpc*1.1)); s.fps=Math.floor(s.fps*1.1);} },
+    delegation:{ name: 'Strategic Delegation', desc: '+5 per second', base: 750, level: 0, apply: s=>{s.fps+=5;} },
+    boundaries:{ name: 'Healthy Boundaries', desc: 'Combo multiplier builds faster', base: 1200, level: 0, apply: s=>{s.comboStep=0.25;} },
+  };
+
+  /* ---------- State ---------- */
+  const state = {
+    fucks: 0,
+    fpc: 1,
+    fps: 0,
+    mult: 1,
+    combo: 0,
+    comboStep: 0.18,   // amount added to combo when clicking fast
+    lastTick: performance.now(),
+    lastSave: Date.now(),
+    critChance: 0.05,
+    critMult: 5,
+    sound: false,
+    achievements: {},
+    upgrades: JSON.parse(JSON.stringify(DEFAULT_UPGRADES)), // shallow clone (functions restored later)
+  };
+
+  /* ---------- Persistent load (with safe rebuild of upgrade functions) ---------- */
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch {}
+  if (saved && typeof saved === 'object') {
+    state.fucks = Number(saved.fucks) || 0;
+    state.fpc   = Number(saved.fpc)   || 1;
+    state.fps   = Number(saved.fps)   || 0;
+    state.mult  = Number(saved.mult)  || 1;
+    state.combo = Number(saved.combo) || 0;
+    state.comboStep = Number(saved.comboStep) || state.comboStep;
+    state.sound = !!saved.sound;
+    state.achievements = (saved.achievements && typeof saved.achievements==='object') ? saved.achievements : {};
+
+    // Rebuild upgrades so apply functions exist
+    const levels = (saved.upgrades && typeof saved.upgrades==='object') ? saved.upgrades : {};
+    const rebuilt = {};
+    Object.keys(DEFAULT_UPGRADES).forEach(k=>{
+      const lvl = Number(levels[k]?.level) || 0;
+      rebuilt[k] = { ...DEFAULT_UPGRADES[k], level: Math.max(0, lvl) };
+    });
+    state.upgrades = rebuilt;
+    state.lastSave = Number(saved.lastSave) || state.lastSave;
+  }
+
+  /* ---------- Offline progress (now safe to call fmt) ---------- */
+  const now = Date.now();
+  const offlineSeconds = Math.max(0, Math.floor((now - state.lastSave)/1000));
+  if (offlineSeconds>0 && state.fps>0){
+    addFucks(state.fps * offlineSeconds);
+    // toast after DOM exists (we create the element references first)
+    setTimeout(()=> toast(`While you were away, ${fmt(state.fps*offlineSeconds)} f*cks accumulated.`), 0);
+  }
+  state.lastSave = now;
+
+  /* ---------- Elements ---------- */
+  const el = {
+    count: id('fuck-count'),
+    fpc: id('fpc'),
+    fps: id('fps'),
+    mult: id('mult'),
+    btn: id('give-btn'),
+    bar: id('progress-bar'),
+    upgrades: id('upgrades'),
+    achv: id('achievements'),
+    save: id('save'),
+    reset: id('reset'),
+    sound: id('sound-toggle'),
+    toasts: id('toasts'),
+    quip: id('quip'),
+    pop: id('pop'),
+  };
+
+  /* ---------- Helpers ---------- */
+  function costOf(key){
+    const u = state.upgrades[key];
+    return Math.floor(u.base * Math.pow(1.85, u.level));
+  }
+  function save(){
+    state.lastSave = Date.now();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  }
+  function progressToNext(){
+    const costs = Object.keys(state.upgrades).map(costOf).sort((a,b)=>a-b);
+    if(!costs.length) return 0;
+    const target = costs[0];
+    return Math.max(0, Math.min(1, state.fucks / target));
+  }
+  function toast(msg){
+    const d = document.createElement('div'); d.className='item'; d.textContent=msg; el.toasts.appendChild(d);
+    setTimeout(()=>{ d.remove(); }, 4000);
+  }
+  function floater(x,y,text){
+    const f=document.createElement('div'); f.className='floater'; f.textContent=text; f.style.left=x+'px'; f.style.top=y+'px';
+    document.body.appendChild(f); setTimeout(()=>f.remove(),900);
+  }
+  function blip(){ if(state.sound){ try{ el.pop.currentTime=0; el.pop.play(); }catch{} } }
+
+  /* ---------- Quips ---------- */
+  const quips = [
+    'Productivity through apathy ✨',
+    'ISO 9001 certified indifference',
+    'Now with 20% more eye-roll',
+    'Carbon-neutral not caring',
+    'Click therapy > talk therapy',
+  ];
+  setInterval(()=>{ el.quip.textContent = quips[Math.floor(Math.random()*quips.length)]; }, 7000);
+
+  /* ---------- Upgrades UI ---------- */
+  function renderUpgrades(){
+    el.upgrades.innerHTML='';
+    Object.keys(state.upgrades).forEach(key=>{
+      const u = state.upgrades[key];
+      const cost = costOf(key);
+      const card = document.createElement('div'); card.className='upgrade';
+      card.innerHTML = `
+        <div class="badge">Lv ${u.level}</div>
+        <div>
+          <h3>${u.name}</h3>
+          <p>${u.desc}</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:end">
+          <div class="price mono">${fmt(cost)}</div>
+          <button class="buy" data-key="${key}">Buy</button>
+        </div>
+      `;
+      el.upgrades.appendChild(card);
+    });
+    updateAffordability();
+  }
+  function updateAffordability(){
+    el.upgrades.querySelectorAll('.buy').forEach(btn=>{
+      const key = btn.getAttribute('data-key');
+      const affordable = state.fucks >= costOf(key);
+      btn.disabled = !affordable;
+    });
+  }
+
+  /* ---------- Achievements ---------- */
+  const ACH = [
+    {id:'first', test: s=>s.fucks>=1, label:'First F*ck'},
+    {id:'hundred', test: s=>s.fucks>=100, label:'Centurion'},
+    {id:'thousand', test: s=>s.fucks>=1000, label:'Kilo-F*cker'},
+    {id:'firstUp', test: s=>s.upgrades.coffee.level + s.upgrades.sarcasm.level + s.upgrades.eyeRoll.level + s.upgrades.delegation.level + s.upgrades.boundaries.level >= 1, label:'Invested Feelings'},
+    {id:'speed', test: s=>s.mult>=5, label:'Blazing Apathy (x5)'},
+  ];
+  function checkAchievements(){
+    let changed=false;
+    ACH.forEach(a=>{
+      if(state.achievements[a.id]) return;
+      if(a.test(state)){
+        state.achievements[a.id]=1; changed=true;
+        toast('Achievement unlocked: '+a.label);
+      }
+    });
+    if(changed) renderAchievements();
+  }
+  function renderAchievements(){
+    el.achv.innerHTML='';
+    Object.keys(state.achievements).forEach(id=>{
+      const a = ACH.find(x=>x.id===id); if(!a) return;
+      const b = document.createElement('span'); b.className='achv'; b.textContent=a.label; el.achv.appendChild(b);
+    });
+  }
+
+  /* ---------- Core mechanics ---------- */
+  let comboDecay = 0.7; // per second
+  let lastClickAt = 0;
+
+  function addFucks(n){ state.fucks += n; }
+
+  function clickAt(x,y){
+    const now = performance.now();
+    const dt = now - lastClickAt; lastClickAt = now;
+
+    // Combo build/decay on rapid clicks
+    if(dt < 300) state.combo = Math.min(10, state.combo + state.comboStep);
+    else state.combo = Math.max(0, state.combo - 0.3);
+
+    const crit = Math.random() < state.critChance;
+    const base = state.fpc;
+    const mult = 1 + state.combo; // up to x11
+    const total = Math.floor(base * mult * (crit ? state.critMult : 1));
+    state.mult = Math.max(1, Math.round(mult*10)/10);
+
+    addFucks(total);
+    blip();
+    floater(x,y, (crit?'CRIT +':'+') + fmt(total));
+  }
+
+  // Smooth passive income via RAF
+  function gameLoop(){
+    const t = performance.now();
+    const dt = (t - state.lastTick)/1000; // seconds
+    state.lastTick = t;
+
+    addFucks(state.fps * dt);                 // passive
+    state.combo = Math.max(0, state.combo - comboDecay*dt); // decay
+    state.mult = Math.max(1, Math.round((1+state.combo)*10)/10);
+
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  /* ---------- UI Binding ---------- */
+  function draw(){
+    el.count.textContent = fmt(state.fucks);
+    el.fpc.textContent = fmt(state.fpc);
+    el.fps.textContent = fmt(state.fps);
+    el.mult.textContent = state.mult.toFixed(1).replace(/\.0$/,'');
+    el.bar.style.width = (progressToNext()*100).toFixed(1)+'%';
+    updateAffordability();
+    checkAchievements();
+  }
+
+  renderUpgrades();
+  renderAchievements();
+
+  el.upgrades.addEventListener('click', e=>{
+    const btn = e.target.closest('.buy'); if(!btn) return;
+    const key = btn.getAttribute('data-key');
+    const cost = costOf(key);
+    if(state.fucks >= cost){
+      state.fucks -= cost;
+      state.upgrades[key].level++;
+      state.upgrades[key].apply(state);
+      toast(`${state.upgrades[key].name} purchased!`);
+      renderUpgrades();
+      draw();
+      save();
+    }
+  });
+
+  el.btn.addEventListener('click', ev=>{
+    const r = el.btn.getBoundingClientRect();
+    const x = ev.clientX || (r.left + r.width/2);
+    const y = ev.clientY || (r.top + r.height/2);
+    clickAt(x,y);
+    draw();
+    save();
+  });
+
+  window.addEventListener('keydown', e=>{
+    if(e.code==='Space'){ e.preventDefault(); const r=el.btn.getBoundingClientRect(); clickAt(r.left+r.width/2, r.top+r.height/2); }
+  });
+
+  el.save.addEventListener('click', ()=>{ save(); toast('Saved.'); });
+  el.reset.addEventListener('click', ()=>{
+    if(confirm('Hard reset all progress?')){
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    }
+  });
+  el.sound.addEventListener('click', ()=>{ state.sound=!state.sound; el.sound.textContent = 'Sound: ' + (state.sound?'On':'Off'); });
+
+  draw();
+  gameLoop();
+})();
+</script>
 </body>
 </html>
