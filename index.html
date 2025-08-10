@@ -88,6 +88,8 @@
 
     .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
     .pill{padding:8px 12px;border-radius:999px;background:#141923;border:1px solid rgba(255,255,255,.08)}
+    .pill.small{background:#222834;color:#e9edf5;border-color:rgba(255,255,255,.18)}
+    .pill.small:hover{background:#273041}
 
     .achv-wrap{display:flex;gap:8px;flex-wrap:wrap}
     .achv{padding:6px 10px;border-radius:999px;background:#192132;border:1px solid rgba(255,255,255,.08);font-size:12px}
@@ -99,6 +101,7 @@
       <div class="badge">v2</div>
       <h1>I Have This Many F*cks To Give</h1>
       <span class="badge" id="quip">Productivity through apathy ✨</span>
+      <span class="badge" id="prestige-badge" title="Permanent bonuses from previous runs">Prestige 0</span>
     </div>
   </header>
 
@@ -110,11 +113,12 @@
             <div>
               <div class="muted small">F*cks given</div>
               <div class="big mono" id="fuck-count">0</div>
+              <div class="small muted mono" id="delta-ticker">+0/s</div>
               <div class="row muted small">
                 <div>Per click: <span class="mono" id="fpc">1</span></div>
                 <div>Per second: <span class="mono" id="fps">0</span></div>
                 <div class="pill">x<span id="mult">1</span> multiplier</div>
-              </div>
+                </div>
             </div>
             <div class="center">
               <button id="give-btn" aria-label="Give a f*ck">Give a F*ck</button>
@@ -126,13 +130,19 @@
             <div class="progress"><div class="bar" id="progress-bar"></div></div>
           </div>
 
+          <div class="progress-wrap">
+            <div class="muted small">Next milestone <span class="mono" id="milestone-label"></span></div>
+            <div class="progress"><div class="bar" id="milestone-bar"></div></div>
+          </div>
+
           <div class="footer">
             <div class="row small muted">
               <button class="pill small" id="save">Save</button>
               <button class="pill small" id="reset">Hard Reset</button>
-              <button class="pill small" id="sound-toggle">Sound: Off</button>
-            </div>
-            <div class="small muted">Press <b>Space</b> to click • Crit chance 5% • Combo builds if you click fast</div>
+              <button class="pill small" id="display-toggle">Number: Smart</button>
+              <button class="pill small" id="sarcasm-toggle">Sarcasm: Off</button>
+              </div>
+            <div class="small muted">Press <b>Space</b> to click • Crit chance <span class="mono" id="crit-display">5%</span> • Combo builds if you click fast • <span id="perma-bonus"></span></div>
           </div>
         </div>
       </section>
@@ -170,6 +180,7 @@
     eyeRoll:{ name: 'Legendary Eye-Roll', desc: '+10% click & passive', base: 200, level: 0, apply: s=>{s.fpc=Math.max(1,Math.floor(s.fpc*1.1)); s.fps=Math.floor(s.fps*1.1);} },
     delegation:{ name: 'Strategic Delegation', desc: '+5 per second', base: 750, level: 0, apply: s=>{s.fps+=5;} },
     boundaries:{ name: 'Healthy Boundaries', desc: 'Combo multiplier builds faster', base: 1200, level: 0, apply: s=>{s.comboStep=0.25;} },
+    universalShrug:{ name: 'Universal Shrug', desc: 'END THIS RUN → Prestige for permanent bonuses', base: 1000000000, level: 0, apply: s=>{ s._triggerPrestige = true; }},
   };
 
   function cloneUpgrades(src){
@@ -191,6 +202,14 @@
     sound: false,
     achievements: {},
     upgrades: cloneUpgrades(DEFAULT_UPGRADES),
+    displayMode: 'smart',
+    smoothedRps: 0,
+    lastShownF: 0,
+    prestigeLevel: 0,
+    prestigeMult: 1,
+    prestigeCritBonus: 0,
+    sarcasm: false,
+    sarcasmToggles: 0,
   };
 
   /* ---------- Persistent load (with safe rebuild of upgrade functions) ---------- */
@@ -203,7 +222,7 @@
     state.mult  = Number(saved.mult)  || 1;
     state.combo = Number(saved.combo) || 0;
     state.comboStep = Number(saved.comboStep) || state.comboStep;
-    state.sound = !!saved.sound;
+    state.sarcasm = !!saved.sound;
     state.achievements = (saved.achievements && typeof saved.achievements==='object') ? saved.achievements : {};
 
     // Rebuild upgrades so apply functions exist
@@ -215,6 +234,12 @@
     });
     state.upgrades = rebuilt;
     state.lastSave = Number(saved.lastSave) || state.lastSave;
+    state.prestigeLevel = Number(saved.prestigeLevel) || 0;
+    state.prestigeMult = 1 + 0.15 * (state.prestigeLevel||0);
+    state.prestigeCritBonus = Math.min(0.15, 0.01 * (state.prestigeLevel||0));
+    state.displayMode = saved.displayMode || state.displayMode;
+    state.sarcasm = !!saved.sarcasm;
+    state.sarcasmToggles = Number(saved.sarcasmToggles)||0;
   }
 
   /* ---------- Offline progress (now safe to call fmt) ---------- */
@@ -235,14 +260,19 @@
     mult: id('mult'),
     btn: id('give-btn'),
     bar: id('progress-bar'),
+    mbar: id('milestone-bar'),
+    mlabel: id('milestone-label'),
+    delta: id('delta-ticker'),
     upgrades: id('upgrades'),
     achv: id('achievements'),
     save: id('save'),
     reset: id('reset'),
-    sound: id('sound-toggle'),
+    sarcasm: id('sarcasm-toggle'),
+    displayToggle: id('display-toggle'),
     toasts: id('toasts'),
     quip: id('quip'),
     pop: id('pop'),
+    prestige: id('prestige-badge'),
   };
 
   /* ---------- Helpers ---------- */
@@ -268,7 +298,60 @@
     const f=document.createElement('div'); f.className='floater'; f.textContent=text; f.style.left=x+'px'; f.style.top=y+'px';
     document.body.appendChild(f); setTimeout(()=>f.remove(),900);
   }
-  function blip(){ if(state.sound){ try{ el.pop.currentTime=0; el.pop.play(); }catch{} } }
+  function blip(){ if(state.sarcasm){ try{ el.pop.currentTime=0; el.pop.play(); }catch{} } }
+  /* ---------- Prestige ---------- */
+  function rebuildPrestige(s){
+    s.prestigeMult = 1 + 0.15 * (s.prestigeLevel||0);
+    s.prestigeCritBonus = Math.min(0.15, 0.01 * (s.prestigeLevel||0));
+  }
+  function updatePrestigeUI(){
+    const badge = document.getElementById('prestige-badge');
+    if(badge) badge.textContent = 'Prestige ' + (state.prestigeLevel||0);
+    const perma = document.getElementById('perma-bonus');
+    if(perma) perma.textContent = 'Permanent bonus: +' + Math.round((state.prestigeMult-1)*100) + '% f/click & f/sec';
+    const critDisp = document.getElementById('crit-display');
+    if(critDisp) critDisp.textContent = Math.round((100*(state.critChance + state.prestigeCritBonus))) + '%';
+  }
+  function confirmPrestige(){ return confirm('Prestige now?\nYou will reset progress but gain permanent bonuses:\n+15% f/click & f/sec per level, +1% crit (up to +15%).'); }
+  function doPrestige(){
+    if(!confirmPrestige()) return;
+    state.prestigeLevel = (state.prestigeLevel||0)+1;
+    state.fucks=0; state.fpc=1; state.fps=0; state.mult=1; state.combo=0; state.comboStep=0.18; state.achievements={};
+    state.upgrades = cloneUpgrades(DEFAULT_UPGRADES);
+    state.critChance = 0.05;
+    rebuildPrestige(state);
+    toast('Apathy Ascension achieved! Permanent bonuses increased.');
+    renderUpgrades(); renderAchievements(); draw(); save();
+  }
+
+  /* ---------- Display helpers ---------- */
+  function fmtExact(n){ return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0'); }
+  function fmtSmart(n){
+    if(n < 1000) return fmtExact(n);
+    if(n < 10_000) return (n/1000).toFixed(2)+'K';
+    if(n < 100_000) return (n/1000).toFixed(1)+'K';
+    if(n < 1_000_000) return Math.floor(n/1000)+'K';
+    if(n < 10_000_000) return (n/1_000_000).toFixed(2)+'M';
+    if(n < 100_000_000) return (n/1_000_000).toFixed(1)+'M';
+    return Math.floor(n/1_000_000)+'M';
+  }
+  function fmtByMode(n){
+    switch(state.displayMode){
+      case 'exact': return fmtExact(n);
+      case 'compact': return nf.format(Math.floor(n));
+      case 'smart': return fmtSmart(n);
+      case 'odometer': return fmtExact(n);
+      default: return fmtSmart(n);
+    }
+  }
+  function nextMilestoneStep(n){
+    if(n < 10_000) return 1000;
+    if(n < 1_000_000) return 10_000;
+    if(n < 10_000_000) return 100_000;
+    if(n < 1_000_000_000) return 1_000_000;
+    return 10_000_000;
+  }
+
 
   /* ---------- Quips ---------- */
   const quips = [
@@ -317,6 +400,7 @@
     {id:'thousand', test: s=>s.fucks>=1000, label:'Kilo-F*cker'},
     {id:'firstUp', test: s=>s.upgrades.coffee.level + s.upgrades.sarcasm.level + s.upgrades.eyeRoll.level + s.upgrades.delegation.level + s.upgrades.boundaries.level >= 1, label:'Invested Feelings'},
     {id:'speed', test: s=>s.mult>=5, label:'Blazing Apathy (x5)'},
+    {id:'snark', test: s=>s.sarcasmToggles>=10, label:'Sarcasm Enthusiast'},
   ];
   function checkAchievements(){
     let changed=false;
@@ -351,8 +435,8 @@
     if(dt < 300) state.combo = Math.min(10, state.combo + state.comboStep);
     else state.combo = Math.max(0, state.combo - 0.3);
 
-    const crit = Math.random() < state.critChance;
-    const base = state.fpc;
+    const crit = Math.random() < (state.critChance + state.prestigeCritBonus);
+    const base = state.fpc * state.prestigeMult;
     const mult = 1 + state.combo; // up to x11
     const total = Math.floor(base * mult * (crit ? state.critMult : 1));
     state.mult = Math.max(1, Math.round(mult*10)/10);
@@ -360,6 +444,7 @@
     addFucks(total);
     blip();
     floater(x,y, (crit?'CRIT +':'+') + fmt(total));
+    if(state.sarcasm && Math.random()<0.2){ toast(sarcasmLines[Math.floor(Math.random()*sarcasmLines.length)]); }
   }
 
   // Smooth passive income via RAF
@@ -368,9 +453,15 @@
     const dt = (t - state.lastTick)/1000; // seconds
     state.lastTick = t;
 
-    addFucks(state.fps * dt);                 // passive
+    addFucks(state.fps * state.prestigeMult * dt);                 // passive (prestige)
     state.combo = Math.max(0, state.combo - comboDecay*dt); // decay
     state.mult = Math.max(1, Math.round((1+state.combo)*10)/10);
+
+    // Delta ticker smoothing
+    const df = state.fucks - state.lastShownF;
+    const rpsInst = df / Math.max(1e-6, dt);
+    state.smoothedRps = 0.2 * rpsInst + 0.8 * (state.smoothedRps||0);
+    state.lastShownF = state.fucks;
 
     draw();
     requestAnimationFrame(gameLoop);
@@ -378,17 +469,27 @@
 
   /* ---------- UI Binding ---------- */
   function draw(){
-    el.count.textContent = fmt(state.fucks);
+    el.count.textContent = (state.displayMode==='odometer') ? fmtByMode(state.fucks) : fmtByMode(state.fucks);
     el.fpc.textContent = fmt(state.fpc);
     el.fps.textContent = fmt(state.fps);
     el.mult.textContent = state.mult.toFixed(1).replace(/\.0$/,'');
     el.bar.style.width = (progressToNext()*100).toFixed(1)+'%';
+
+    // Delta ticker
+    if(el.delta){ const v = Math.max(0, state.smoothedRps); el.delta.textContent = '+' + fmtExact(v) + '/s'; }
+    // Milestone
+    const step = nextMilestoneStep(state.fucks);
+    const curBase = Math.floor(state.fucks/step)*step; const next = curBase + step;
+    if(el.mbar){ el.mbar.style.width = ((state.fucks - curBase)/step*100).toFixed(1)+'%'; }
+    if(el.mlabel){ el.mlabel.textContent = fmtExact(curBase) + ' → ' + fmtExact(next); }
+
     updateAffordability();
     checkAchievements();
   }
 
   renderUpgrades();
   renderAchievements();
+  rebuildPrestige(state);
 
   el.upgrades.addEventListener('click', e=>{
     const btn = e.target.closest('.buy'); if(!btn) return;
@@ -398,6 +499,7 @@
       state.fucks -= cost;
       state.upgrades[key].level++;
       state.upgrades[key].apply(state);
+      if(state._triggerPrestige){ state._triggerPrestige=false; setTimeout(()=>{ toast('Universal Shrug activated. Time to ascend.'); doPrestige(); }, 50); return; }
       toast(`${state.upgrades[key].name} purchased!`);
       renderUpgrades();
       draw();
@@ -435,7 +537,13 @@
       location.reload();
     }
   });
-  el.sound.addEventListener('click', ()=>{ state.sound=!state.sound; el.sound.textContent = 'Sound: ' + (state.sound?'On':'Off'); });
+  el.sarcasm.addEventListener('click', ()=>{ state.sarcasm=!state.sarcasm; state.sarcasmToggles++; el.sarcasm.textContent = 'Sarcasm: ' + (state.sarcasm?'On':'Off'); toast('F*ck this button'); checkAchievements(); save(); });
+  el.displayToggle.addEventListener('click', ()=>{
+    const order=['smart','exact'];
+    const next=order[(order.indexOf(state.displayMode)+1)%order.length];
+    state.displayMode=next; el.displayToggle.textContent='Number: '+(next.charAt(0).toUpperCase()+next.slice(1));
+    draw(); save();
+  });
 
   draw();
   gameLoop();
