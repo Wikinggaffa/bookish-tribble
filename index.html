@@ -172,6 +172,10 @@
     boundaries:{ name: 'Healthy Boundaries', desc: 'Combo multiplier builds faster', base: 1200, level: 0, apply: s=>{s.comboStep=0.25;} },
   };
 
+  function cloneUpgrades(src){
+    return Object.fromEntries(Object.entries(src).map(([k,v])=>[k,{...v}]));
+  }
+
   /* ---------- State ---------- */
   const state = {
     fucks: 0,
@@ -186,7 +190,7 @@
     critMult: 5,
     sound: false,
     achievements: {},
-    upgrades: JSON.parse(JSON.stringify(DEFAULT_UPGRADES)), // shallow clone (functions restored later)
+    upgrades: cloneUpgrades(DEFAULT_UPGRADES),
   };
 
   /* ---------- Persistent load (with safe rebuild of upgrade functions) ---------- */
@@ -204,10 +208,10 @@
 
     // Rebuild upgrades so apply functions exist
     const levels = (saved.upgrades && typeof saved.upgrades==='object') ? saved.upgrades : {};
-    const rebuilt = {};
-    Object.keys(DEFAULT_UPGRADES).forEach(k=>{
+    const rebuilt = cloneUpgrades(DEFAULT_UPGRADES);
+    Object.keys(rebuilt).forEach(k=>{
       const lvl = Number(levels[k]?.level) || 0;
-      rebuilt[k] = { ...DEFAULT_UPGRADES[k], level: Math.max(0, lvl) };
+      rebuilt[k].level = Math.max(0, lvl);
     });
     state.upgrades = rebuilt;
     state.lastSave = Number(saved.lastSave) || state.lastSave;
@@ -411,7 +415,17 @@
   });
 
   window.addEventListener('keydown', e=>{
-    if(e.code==='Space'){ e.preventDefault(); const r=el.btn.getBoundingClientRect(); clickAt(r.left+r.width/2, r.top+r.height/2); }
+    if(e.code === 'Space') e.preventDefault();
+  });
+
+  window.addEventListener('keyup', e=>{
+    if(e.code === 'Space'){
+      e.preventDefault();
+      const r = el.btn.getBoundingClientRect();
+      clickAt(r.left + r.width/2, r.top + r.height/2);
+      draw();
+      save();
+    }
   });
 
   el.save.addEventListener('click', ()=>{ save(); toast('Saved.'); });
